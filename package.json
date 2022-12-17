@@ -8,5 +8,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "bloom-filters": "^3.0.0",
+    "merkle-tree": "^1.0.5"
+  }
 }
