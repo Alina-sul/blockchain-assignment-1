@@ -1,9 +1,11 @@
-import crypto from 'crypto';
-import {ec as EC} from 'elliptic';
-
+const crypto = require('crypto');
+const SHA256 = require('crypto-js/sha256');
+const EC = require('elliptic').ec;
 const ec = new EC('secp256k1');
+const { BloomFilter } = require('bloom-filters');
+const { MerkleTree } = require('merkletreejs');
 
-export class Transaction {
+class Transaction {
     constructor(fromAddress, toAddress, amount) {
         this.fromAddress = fromAddress;
         this.toAddress = toAddress;
@@ -14,8 +16,17 @@ export class Transaction {
     calculateHash() {
         return crypto
             .createHash('sha256')
-            .update(this.fromAddress + this.toAddress + this.amount + this.timestamp)
+            .update(
+                this.fromAddress + this.toAddress + this.amount + this.timestamp
+            )
             .digest('hex');
+    }
+
+    setSignature(signature) {
+        this.signature = signature;
+    }
+    setDate(date) {
+        this.timestamp = date;
     }
 
     signTransaction(signingKey) {
@@ -39,16 +50,33 @@ export class Transaction {
         const publicKey = ec.keyFromPublic(this.fromAddress, 'hex');
         return publicKey.verify(this.calculateHash(), this.signature);
     }
-
 }
 
-export class Block {
+class Block {
     constructor(timestamp, transactions, previousHash = '') {
         this.previousHash = previousHash;
         this.timestamp = timestamp;
         this.transactions = transactions;
         this.nonce = 0;
         this.hash = this.calculateHash();
+        // Adding new bloom filter object
+        this.bloomFilter = new BloomFilter(10, 4);
+        // Running merkle tree method
+        this.createMerkleTree(transactions);
+    }
+
+    createMerkleTree(transactions) {
+        const leaves = transactions.map((x) => SHA256(x.signature));
+        this.merkleTree = new MerkleTree(leaves, SHA256);
+        this.root = this.merkleTree.getRoot().toString('hex');
+    }
+
+    createBloomFilter(transactions) {
+        transactions.forEach((transaction) => {
+            if (transaction.fromAddress != null)
+                this.bloomFilter.add(transaction.signature);
+            return;
+        });
     }
 
     calculateHash() {
@@ -56,21 +84,21 @@ export class Block {
             .createHash('sha256')
             .update(
                 this.previousHash +
-                this.timestamp +
-                JSON.stringify(this.transactions) +
-                this.nonce
+                    this.timestamp +
+                    JSON.stringify(this.transactions) +
+                    this.nonce
             )
             .digest('hex');
     }
 
     mineBlock(difficulty) {
         while (
-            this.hash.substring(0, difficulty) !== Array(difficulty + 1).join('0')
-            ) {
+            this.hash.substring(0, difficulty) !==
+            Array(difficulty + 1).join('0')
+        ) {
             this.nonce++;
             this.hash = this.calculateHash();
         }
-
     }
 
     hasValidTransactions() {
@@ -82,6 +110,18 @@ export class Block {
 
         return true;
     }
+
+    // search in bloom filter
+    isInBloomFilter(signature) {
+        return this.bloomFilter.has(signature);
+    }
+
+    // search in merkle tree
+    isInMerkleTree(signature) {
+        const leaf = SHA256(signature);
+        const proof = this.merkleTree.getProof(leaf);
+        return this.merkleTree.verify(proof, leaf, this.root);
+    }
 }
 
 class Blockchain {
@@ -89,10 +129,13 @@ class Blockchain {
         this.chain = [this.createGenesisBlock()];
         this.difficulty = 2;
         this.pendingTransactions = [];
-        this.miningReward = 100;
+        this.miningReward = 20;
     }
 
+    static blockChainLength = 0;
+
     createGenesisBlock() {
+        Blockchain.blockChainLength++;
         return new Block(Date.parse('2017-01-01'), [], '0');
     }
 
@@ -100,6 +143,7 @@ class Blockchain {
         return this.chain[this.chain.length - 1];
     }
 
+    //block mine 4 transactions
     minePendingTransactions(miningRewardAddress) {
         const rewardTx = new Transaction(
             null,
@@ -108,41 +152,61 @@ class Blockchain {
         );
         this.pendingTransactions.push(rewardTx);
 
+        this.blockTransactions = [];
+
+        // adding 4 transactions to block
+        for (let i = 0; i < 3; i++) {
+            if (this.pendingTransactions[i] != undefined) {
+                this.blockTransactions.push(this.pendingTransactions[i]);
+            }
+        }
+
+        this.blockTransactions.push(rewardTx);
+
         const block = new Block(
             Date.now(),
-            this.pendingTransactions,
+            this.blockTransactions,
             this.getLatestBlock().hash
         );
+
         block.mineBlock(this.difficulty);
+        // Adding transactions to Bloom filter
+        block.createBloomFilter(this.blockTransactions);
+        // Adding transactions to merkle tree
+        block.createMerkleTree(this.blockTransactions);
 
         this.chain.push(block);
-
+        Blockchain.blockChainLength++;
         this.pendingTransactions = [];
     }
 
     addTransaction(transaction) {
         if (!transaction.fromAddress || !transaction.toAddress) {
             throw new Error('Transaction must include from and to address');
+            return;
         }
 
         // Verify the transaction
         if (!transaction.isValid()) {
             throw new Error('Cannot add invalid transaction to chain');
+            return;
         }
 
         if (transaction.amount <= 0) {
             throw new Error('Transaction amount should be higher than 0');
+            return;
         }
 
         // Making sure that the amount sent is not greater than existing balance
         const walletBalance = this.getBalanceOfAddress(transaction.fromAddress);
         if (walletBalance < transaction.amount) {
             throw new Error('Not enough balance');
+            return;
         }
 
         // Get all other pending transactions for the "from" wallet
         const pendingTxForWallet = this.pendingTransactions.filter(
-            tx => tx.fromAddress === transaction.fromAddress
+            (tx) => tx.fromAddress === transaction.fromAddress
         );
 
         // If the wallet has more pending transactions, calculate the total amount
@@ -150,7 +214,7 @@ class Blockchain {
         // transaction.
         if (pendingTxForWallet.length > 0) {
             const totalPendingAmount = pendingTxForWallet
-                .map(tx => tx.amount)
+                .map((tx) => tx.amount)
                 .reduce((prev, curr) => prev + curr);
 
             const totalAmount = totalPendingAmount + transaction.amount;
@@ -158,10 +222,32 @@ class Blockchain {
                 throw new Error(
                     'Pending transactions for this wallet is higher than its balance.'
                 );
+                return;
             }
         }
 
         this.pendingTransactions.push(transaction);
+    }
+
+    transactionIsFound(transaction) {
+        let i = 0;
+        let found = false;
+        this.chain.forEach((block) => {
+            if (block.isInBloomFilter(transaction)) {
+                if (block.isInMerkleTree(transaction)) {
+                    console.log(
+                        'The transaction is located in block number : ' +
+                            i +
+                            '.'
+                    );
+                    return (found = true);
+                }
+            }
+            i++;
+        });
+
+        console.log("The transaction wasn't found");
+        return found;
     }
 
     getBalanceOfAddress(address) {
@@ -226,6 +312,30 @@ class Blockchain {
 
         return true;
     }
+
+    calculateBurnedCoins() {
+        let total = 0;
+        this.chain.forEach((block) => {
+            block.transactions.forEach((transaction) => {
+                if (transaction.toAddress === 'Burning Address')
+                    total += transaction.amount;
+            });
+        });
+        return total;
+    }
+
+    calculateMinedCoins() {
+      let total = 0;
+      this.chain.forEach((block) => {
+        block.transactions.forEach((transaction) => {
+          if (transaction.fromAddress === null)
+            total += transaction.amount;
+        });
+      });
+      return total;
+    }
 }
 
-
+module.exports.Blockchain = Blockchain;
+module.exports.Block = Block;
+module.exports.Transaction = Transaction;
