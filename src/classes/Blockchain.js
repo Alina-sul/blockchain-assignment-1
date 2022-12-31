@@ -5,7 +5,6 @@ const { Transaction } = require('./Transaction');
 const {
     CONSTANTS: { TX_LIMIT_IN_BLOCK, INIT_BALANCE },
 } = require('../lib/constants');
-const ec = new EC('secp256k1');
 
 class Blockchain {
     constructor() {
