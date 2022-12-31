@@ -12,10 +12,12 @@
     "dependencies": {
         "bloom-filters": "^3.0.0",
         "crypto": "^1.0.1",
+        "crypto-js": "^4.1.1",
         "debug": "^4.3.4",
         "elliptic": "^6.5.4",
         "fully-connected-topology": "^1.1.1",
         "merkle-tree": "^1.0.5",
+        "merkletreejs": "^0.3.9",
         "prettier": "^2.8.1"
     },
     "devDependencies": {

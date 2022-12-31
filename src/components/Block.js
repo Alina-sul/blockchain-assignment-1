@@ -2,6 +2,9 @@ const crypto = require('crypto');
 const SHA256 = require('crypto-js/sha256');
 const { BloomFilter } = require('bloom-filters');
 const { MerkleTree } = require('merkletreejs');
+const {
+    CONSTANTS: { BF_ERROR_RATE },
+} = require('../lib/constants');
 
 class Block {
     constructor(timestamp, transactions, previousHash = '') {
@@ -10,24 +13,16 @@ class Block {
         this.transactions = transactions;
         this.nonce = 0;
         this.hash = this.calculateHash();
-        // Adding new bloom filter object
-        this.bloomFilter = new BloomFilter(10, 4);
-        // Running merkle tree method
-        this.createMerkleTree(transactions);
-    }
 
-    createMerkleTree(transactions) {
-        const leaves = transactions.map((x) => SHA256(x.signature));
+        // merkle-tree initialization:
+        const leaves = transactions.map((transaction) =>
+            transaction.calculateHash()
+        );
         this.merkleTree = new MerkleTree(leaves, SHA256);
         this.root = this.merkleTree.getRoot().toString('hex');
-    }
 
-    createBloomFilter(transactions) {
-        transactions.forEach((transaction) => {
-            if (transaction.fromAddress != null)
-                this.bloomFilter.add(transaction.signature);
-            return;
-        });
+        // bloom-filter initialization:
+        this.bloomFilter = BloomFilter.from(leaves, BF_ERROR_RATE);
     }
 
     calculateHash() {
@@ -35,9 +30,10 @@ class Block {
             .createHash('sha256')
             .update(
                 this.previousHash +
-                this.timestamp +
-                JSON.stringify(this.transactions) +
-                this.nonce
+                    this.timestamp +
+                    JSON.stringify(this.transactions) +
+                    this.nonce +
+                    this.root
             )
             .digest('hex');
     }
@@ -46,7 +42,7 @@ class Block {
         while (
             this.hash.substring(0, difficulty) !==
             Array(difficulty + 1).join('0')
-            ) {
+        ) {
             this.nonce++;
             this.hash = this.calculateHash();
         }
@@ -58,20 +54,18 @@ class Block {
                 return false;
             }
         }
-
         return true;
     }
 
-    // search in bloom filter
-    isInBloomFilter(signature) {
-        return this.bloomFilter.has(signature);
-    }
+    hasTransactionInBlock(transaction) {
+        const txHash = transaction.calculateHash();
+        // first search in bloom filter
+        const bloomFilterResult = this.bloomFilter.has(txHash);
+        if (!bloomFilterResult) return false;
 
-    // search in merkle tree
-    isInMerkleTree(signature) {
-        const leaf = SHA256(signature);
-        const proof = this.merkleTree.getProof(leaf);
-        return this.merkleTree.verify(proof, leaf, this.root);
+        // if bloom-filter returns true, check merkle tree
+        const proof = this.merkleTree.getProof(txHash);
+        return this.merkleTree.verify(proof, txHash, this.root);
     }
 }
 
