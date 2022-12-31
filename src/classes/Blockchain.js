@@ -1,3 +1,11 @@
+const EC = require('elliptic').ec;
+const { Block } = require('./Block');
+const { Transaction } = require('./Transaction');
+
+const {
+    CONSTANTS: { TX_LIMIT_IN_BLOCK, INIT_BALANCE },
+} = require('../lib/constants');
+const ec = new EC('secp256k1');
 
 class Blockchain {
     constructor() {
@@ -5,54 +13,76 @@ class Blockchain {
         this.difficulty = 2;
         this.pendingTransactions = [];
         this.miningReward = 20;
+        this.burnAddress = '0x0';
+        this.burnedCoins = 0;
+        this.minedCoins = 0;
     }
 
-    static blockChainLength = 0;
-
     createGenesisBlock() {
-        Blockchain.blockChainLength++;
-        return new Block(Date.parse('2017-01-01'), [], '0');
+        return new Block(Date.parse('2009-01-03'), [], '0');
     }
 
     getLatestBlock() {
         return this.chain[this.chain.length - 1];
     }
 
-    //block mine 4 transactions
     minePendingTransactions(miningRewardAddress) {
+        const blockTransactions = [];
+
+        // reward transaction
         const rewardTx = new Transaction(
             null,
             miningRewardAddress,
             this.miningReward
         );
-        this.pendingTransactions.push(rewardTx);
 
-        this.blockTransactions = [];
+        // burn transaction
+        const burnFee = this.chain.length;
+        const burnTx = new Transaction(null, this.burnAddress, burnFee);
 
-        // adding 4 transactions to block
-        for (let i = 0; i < 3; i++) {
-            if (this.pendingTransactions[i] != undefined) {
-                this.blockTransactions.push(this.pendingTransactions[i]);
+        // reduce -1 for rewardTx and -1 for burnTx that must be included
+        for (let i = 0; i < TX_LIMIT_IN_BLOCK - 2; i++) {
+            if (this.pendingTransactions[i]) {
+                blockTransactions.push(this.pendingTransactions[i]);
             }
         }
 
-        this.blockTransactions.push(rewardTx);
+        // push reward and burn transactions - both must be included in the block
+        blockTransactions.push(rewardTx);
+        blockTransactions.push(burnTx);
 
+        // mine the block
         const block = new Block(
             Date.now(),
-            this.blockTransactions,
+            blockTransactions,
             this.getLatestBlock().hash
         );
-
         block.mineBlock(this.difficulty);
-        // Adding transactions to Bloom filter
-        block.createBloomFilter(this.blockTransactions);
-        // Adding transactions to merkle tree
-        block.createMerkleTree(this.blockTransactions);
+
+        // calculate burned coins amount
+        blockTransactions.forEach((burnTx) => {
+            if (burnTx.toAddress === this.burnAddress)
+                this.burnedCoins += burnTx.amount;
+        });
+
+        // calculate mined coins amount
+        blockTransactions.forEach((minedTx) => {
+            if (minedTx.fromAddress === null) this.minedCoins += minedTx.amount;
+        });
 
         this.chain.push(block);
-        Blockchain.blockChainLength++;
-        this.pendingTransactions = [];
+
+        // remove mined transaction - first one
+        this.pendingTransactions = this.pendingTransactions.slice(0, 1);
+    }
+
+    mineAllPendingTransactions() {
+        return new Promise( resolve => {
+            while (this.pendingTransactions.length) {
+                this.minePendingTransactions();
+            }
+            resolve('Mined all transactions');
+        })
     }
 
     addTransaction(transaction) {
@@ -102,27 +132,6 @@ class Blockchain {
         }
 
         this.pendingTransactions.push(transaction);
-    }
-
-    transactionIsFound(transaction) {
-        let i = 0;
-        let found = false;
-        this.chain.forEach((block) => {
-            if (block.isInBloomFilter(transaction)) {
-                if (block.isInMerkleTree(transaction)) {
-                    console.log(
-                        'The transaction is located in block number : ' +
-                            i +
-                            '.'
-                    );
-                    return (found = true);
-                }
-            }
-            i++;
-        });
-
-        console.log("The transaction wasn't found");
-        return found;
     }
 
     getBalanceOfAddress(address) {
@@ -188,26 +197,20 @@ class Blockchain {
         return true;
     }
 
-    calculateBurnedCoins() {
-        let total = 0;
+    hasTransactionInBlockChain(transaction) {
         this.chain.forEach((block) => {
-            block.transactions.forEach((transaction) => {
-                if (transaction.toAddress === 'Burning Address')
-                    total += transaction.amount;
-            });
+            if (block.hasTransactionInBlock(transaction)) {
+                return true;
+            }
+            return false;
         });
-        return total;
     }
 
-    calculateMinedCoins() {
-      let total = 0;
-      this.chain.forEach((block) => {
-        block.transactions.forEach((transaction) => {
-          if (transaction.fromAddress === null)
-            total += transaction.amount;
-        });
-      });
-      return total;
+    async setInitialBalance(wallet) {
+        const transaction = new Transaction(null, wallet, INIT_BALANCE);
+        this.pendingTransactions.push(transaction);
+
+        await this.mineAllPendingTransactions();
     }
 }
 

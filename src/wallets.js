@@ -1,4 +1,4 @@
-const { Wallet } = require("./components/wallet");
+const { Wallet } = require("./classes/Wallet");
 
 const fullNodeWallet = new Wallet();
 const wallet = new Wallet();
