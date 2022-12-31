@@ -1,20 +1,24 @@
 {
-  "name": "blockchain-matala1",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bloom-filters": "^3.0.0",
-    "crypto": "^1.0.1",
-    "debug": "^4.3.4",
-    "elliptic": "^6.5.4",
-    "merkle-tree": "^1.0.5",
-    "prettier": "^2.8.1"
-  }
+    "name": "blockchain-matala1",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "bloom-filters": "^3.0.0",
+        "crypto": "^1.0.1",
+        "debug": "^4.3.4",
+        "elliptic": "^6.5.4",
+        "fully-connected-topology": "^1.1.1",
+        "merkle-tree": "^1.0.5",
+        "prettier": "^2.8.1"
+    },
+    "devDependencies": {
+        "nodemon": "^2.0.20"
+    }
 }
