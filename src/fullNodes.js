@@ -28,6 +28,7 @@ async function setUpFullNodes() {
 
     // add transactions from memPool
     const jsonData = fs.readFileSync('./lib/transactions.js');
+    // TODO: fix jsonData creation
     const parsedData = JSON.parse(jsonData);
     const defaultTransactions = parsedData;
 
@@ -45,6 +46,8 @@ async function setUpFullNodes() {
         }
         fullNodesBlockChain.minePendingTransactions(fullNodeKey);
     }
+
+    return { fullNodesBlockChain };
 }
 
 module.exports.setUpFullNodes = setUpFullNodes;
