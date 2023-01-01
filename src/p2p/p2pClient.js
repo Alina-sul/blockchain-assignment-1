@@ -52,6 +52,17 @@ peer.on('connection', (socket, peerIp) => {
             console.log('Transaction added successfully!');
             return;
         }
+
+        if (message.type === 'walletTransactionsResponse' && message.from === myPort) {
+            console.log('This wallet transaction history is:', message.transactionsList);
+            return;
+        }
+
+        if (message.type === 'blockChainInfoResponse' && message.from === myPort) {
+            console.log('Blockchain mined coins sum:', message.minedCoins);
+            console.log('Blockchain burned coins sum:', message.burnedCoins);
+            return;
+        }
     });
 
     socket.on('end', () => {
@@ -77,10 +88,10 @@ async function questionsList() {
             {
                 name: 'command',
                 description:
-                    'Press (1) for current balance, or (2) to send coins',
+                    'Press (1) for current balance \n Press (2) to send coins \n Press (3) to print wallet information \n Press (4) to print blockchain information',
                 required: true,
                 type: 'string',
-                pattern: /^[12]$/,
+                pattern: /^[1234]$/,
             },
         ]);
 
@@ -91,35 +102,49 @@ async function questionsList() {
             return true;
         }
 
-        // command === '2' :
-        try {
-            answer = await prompt.get([
-                {
-                    name: 'port',
-                    description: 'To what port do you want to send?',
-                    required: true,
-                    type: 'integer',
-                },
-                {
-                    name: 'coins',
-                    description: 'What coins amount?',
-                    required: true,
-                    type: 'number',
-                },
-            ]);
+        if (answer.command === '2') {
+            try {
+                answer = await prompt.get([
+                    {
+                        name: 'port',
+                        description: 'To what port do you want to send?',
+                        required: true,
+                        type: 'integer',
+                    },
+                    {
+                        name: 'coins',
+                        description: 'What coins amount?',
+                        required: true,
+                        type: 'number',
+                    },
+                ]);
 
-            const { port, coins } = answer;
-            console.log('start transaction:', coins, 'to', port);
-            const jsonMsg = formatMessage({
-                type: 'newTransaction',
-                to: port,
-                amount: coins,
-            });
+                const { port, coins } = answer;
+                console.log('start transaction:', coins, 'to', port);
+                const jsonMsg = formatMessage({
+                    type: 'newTransaction',
+                    to: port,
+                    amount: coins,
+                });
+                sockets['2000'].write(jsonMsg);
+                return true;
+            } catch (err) {
+                if (err?.message === 'canceled') return false;
+                console.log('invalid transaction input', err?.message);
+                return true;
+            }
+        }
+
+        if (answer.command === '3') {
+            console.log('getting all transactions info...');
+            const jsonMsg = formatMessage({ type: 'getAllWalletTransactions' });
             sockets['2000'].write(jsonMsg);
             return true;
-        } catch (err) {
-            if (err?.message === 'canceled') return false;
-            console.log('invalid transaction input', err?.message);
+        }
+        if (answer.command === '4') {
+            console.log('getting blockchain info...');
+            const jsonMsg = formatMessage({ type: 'getBlockChainInfo' });
+            sockets['2000'].write(jsonMsg);
             return true;
         }
     } catch (err) {

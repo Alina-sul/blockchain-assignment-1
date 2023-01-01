@@ -123,6 +123,34 @@ async function p2pServer() {
                     );
                     return;
                 }
+
+                if (message.type === 'getAllWalletTransactions') {
+                    const transactionsList =
+                        fullNodesBlockChain.getAllTransactionsForWallet(
+                            peerAddress
+                        );
+                    socket.write(
+                        formatMessage({
+                            type: 'walletTransactionsResponse',
+                            transactionsList,
+                        })
+                    );
+                    return;
+                }
+
+                if (message.type === 'getBlockChainInfo') {
+                    const minedCoins = fullNodesBlockChain.getMinedCoinsSum();
+                    const burnedCoins = fullNodesBlockChain.getBurnedCoinsSum();
+
+                    socket.write(
+                        formatMessage({
+                            type: 'blockChainInfoResponse',
+                            minedCoins,
+                            burnedCoins,
+                        })
+                    );
+                    return;
+                }
             } catch (err) {
                 console.warn('Error:', err?.message);
             }

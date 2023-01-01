@@ -210,6 +210,14 @@ class Blockchain {
 
         await this.mineAllPendingTransactions();
     }
+
+    getBurnedCoinsSum() {
+        return this.burnedCoins;
+    }
+
+    getMinedCoinsSum() {
+        return this.minedCoins;
+    }
 }
 
 module.exports.Blockchain = Blockchain;
