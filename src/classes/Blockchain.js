@@ -71,12 +71,12 @@ class Blockchain {
         this.chain.push(block);
 
         // remove mined transaction - first one
-        this.pendingTransactions = this.pendingTransactions.slice(0, 1);
+        this.pendingTransactions = this.pendingTransactions.slice(3,this.pendingTransactions.length);
     }
 
     mineAllPendingTransactions() {
         return new Promise((resolve) => {
-            while (this.pendingTransactions.length) {
+            while (this.pendingTransactions.length > 0) {
                 this.minePendingTransactions();
             }
             resolve('Mined all transactions');

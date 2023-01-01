@@ -3,8 +3,9 @@ const EC = require('elliptic').ec;
 const { wallet1, wallet2, fullNodeWallet } = require('./wallets');
 const { Blockchain } = require('./classes/Blockchain');
 const { Transaction } = require('./classes/Transaction');
-
 const ec = new EC('secp256k1');
+
+
 
 async function setUpFullNodes() {
     // fullNode private key
@@ -22,27 +23,37 @@ async function setUpFullNodes() {
 
     // fill initial balances on wallets
     console.log('Setting initial balance to blocks...\n');
-    // TODO: fix infinite loop :'(
     await fullNodesBlockChain.setInitialBalance(wallet1);
     await fullNodesBlockChain.setInitialBalance(wallet2);
+    console.log('Initial balance is set.\n');
 
     // add transactions from memPool
-    const jsonData = fs.readFileSync('./lib/transactions.js');
-    // TODO: fix jsonData creation
-    const parsedData = JSON.parse(jsonData);
+    console.log('Adding transactions from mem pool\n');
+    const jsonData = fs.readFileSync('src/lib/transactions.json');
+    const parsedData = JSON.parse(jsonData.toString());
     const defaultTransactions = parsedData;
 
-    for (let i = 0; i < defaultTransactions.length; i = i +4) {
-        for (let j = i; j <= i + 3; j++) {
+    const walletsMap = new Map();
+    walletsMap.set(wallet1.publicKey, wallet1);
+    walletsMap.set(wallet2.publicKey, wallet2);
 
-            const txn = defaultTransactions[j];
-            if(txn!=undefined){
-                const transaction = new Transaction(txn.fromAddress, txn.toAddress, txn.amount);
-                transaction.setSignature(txn.signature);
-                transaction.setDate(txn.timestamp);
+    for (let i = 0; i < defaultTransactions.length; i = i + 4) {
+        for (let j = i; j <= i + 3; j++) {
+            const tx = defaultTransactions[j];
+            if (tx != undefined) {
+                const transaction = new Transaction(
+                    tx.fromAddress,
+                    tx.toAddress,
+                    tx.amount
+                );
+                const keyPair = ec.keyFromPrivate(
+                    walletsMap.get(tx.fromAddress).privateKey
+                );
+
+                transaction.setDate(tx.timestamp);
+                transaction.signTransaction(keyPair);
                 fullNodesBlockChain.addTransaction(transaction);
             }
-
         }
         fullNodesBlockChain.minePendingTransactions(fullNodeKey);
     }
