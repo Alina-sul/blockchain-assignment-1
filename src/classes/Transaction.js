@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const EC = require('elliptic').ec;
 const ec = new EC('secp256k1');
 
@@ -13,7 +14,7 @@ class Transaction {
         return crypto
             .createHash('sha256')
             .update(
-                this.fromAddress + this.toAddress + this.amount + this.timestamp
+                this?.fromAddress || '' + this?.toAddress || '' + this?.amount || '' + this?.timestamp || ''
             )
             .digest('hex');
     }

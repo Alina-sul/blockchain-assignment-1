@@ -18,12 +18,12 @@ export function toLocalIp(port) {
     return `127.0.0.1:${port}`;
 }
 
-//'127.0.0.1:4000' -> '4000'
-export function extractPortFromIp() {
+//'127.0.0.1:2000' -> '2000'
+export function extractPortFromIp(ipWithPort) {
     return ipWithPort.toString().slice(ipWithPort.length - 4, ipWithPort.length);
 }
 
-export function extractMessage(jsonMsg: string) {
+export function extractMessage(jsonMsg) {
     try {
         return JSON.parse(jsonMsg.trim());
     } catch {
@@ -32,6 +32,6 @@ export function extractMessage(jsonMsg: string) {
     }
 }
 
-export function formatMessage(msg: unknown) {
+export function formatMessage(msg) {
     return JSON.stringify(msg);
 }
