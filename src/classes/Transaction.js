@@ -19,9 +19,6 @@ class Transaction {
             .digest('hex');
     }
 
-    setSignature(signature) {
-        this.signature = signature;
-    }
     setDate(date) {
         this.timestamp = date;
     }

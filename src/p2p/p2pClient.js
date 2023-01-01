@@ -1,11 +1,13 @@
-import {
-    extractMessage,
-    extractPeersAndMyPort,
-    extractPortFromIp,
-    formatMessage,
-    getPeerIps,
-    toLocalIp,
-} from './utils';
+const {
+    utils: {
+        extractMessage,
+        extractPeersAndMyPort,
+        extractPortFromIp,
+        formatMessage,
+        getPeerIps,
+        toLocalIp,
+    },
+} = require('./utils');
 
 const prompt = require('prompt-async');
 const topology = require('fully-connected-topology');

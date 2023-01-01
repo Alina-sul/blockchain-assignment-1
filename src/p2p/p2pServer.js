@@ -1,16 +1,19 @@
 const topology = require('fully-connected-topology');
 const EC = require('elliptic').ec;
-const { Transaction } = require('./classes/Transaction');
+const { Transaction } = require('../classes/Transaction');
 const { fullNodeWallet, wallet1, wallet2 } = require('../wallets');
-const {setUpFullNodes} = require('../fullNodes');
+const { setUpFullNodes } = require('../fullNodes');
 const {
-    extractMessage,
-    extractPeersAndMyPort,
-    extractPortFromIp,
-    formatMessage,
-    getPeerIps,
-    toLocalIp,
+    utils: {
+        extractMessage,
+        extractPeersAndMyPort,
+        extractPortFromIp,
+        formatMessage,
+        getPeerIps,
+        toLocalIp,
+    },
 } = require('./utils');
+const { setInitTransactions } = require('../lib/setInitTransactions');
 
 const ec = new EC('secp256k1');
 
@@ -35,6 +38,9 @@ const myIp = toLocalIp(myPort);
 const peerIps = getPeerIps(peers);
 
 async function p2pServer() {
+    // set initial transactions file
+    await setInitTransactions().then();
+    // set new blockchain
     const { fullNodesBlockChain } = await setUpFullNodes();
 
     // connect to peers
@@ -61,8 +67,14 @@ async function p2pServer() {
                 console.log('got msg from', peerPort);
 
                 if (message.type === 'getBalanceOfAddress') {
-                    const peerBalance = fullNodesBlockChain.getBalanceOfAddress(peerAddress);
-                    socket.write(formatMessage({ type: 'balanceResponse', balance: peerBalance }));
+                    const peerBalance =
+                        fullNodesBlockChain.getBalanceOfAddress(peerAddress);
+                    socket.write(
+                        formatMessage({
+                            type: 'balanceResponse',
+                            balance: peerBalance,
+                        })
+                    );
                     return;
                 }
 
@@ -74,15 +86,31 @@ async function p2pServer() {
 
                     const targetAddress = wallets[message.to]?.publicKey;
                     if (!targetAddress) {
-                        console.log("can't transfer coins to unknown wallet address");
+                        console.log(
+                            "can't transfer coins to unknown wallet address"
+                        );
                         return;
                     }
 
-                    let newTransaction = new Transaction(peerAddress, targetAddress, message.amount);
+                    let newTransaction = new Transaction(
+                        peerAddress,
+                        targetAddress,
+                        message.amount
+                    );
                     const keyPair = ec.keyFromPrivate(peerPrivateKey);
+
                     newTransaction.signTransaction(keyPair);
                     fullNodesBlockChain.addTransaction(newTransaction);
-                    console.log('added new transaction of', message.amount, 'from', peerPort, 'to', message.to);
+
+                    console.log(
+                        'added new transaction of',
+                        message.amount,
+                        'from',
+                        peerPort,
+                        'to',
+                        message.to
+                    );
+
                     fullNodesBlockChain.minePendingTransactions();
 
                     socket.write(
@@ -90,7 +118,7 @@ async function p2pServer() {
                             type: 'transactionAddDone',
                             from: peerPort,
                             to: message.to,
-                            amount: message.amount
+                            amount: message.amount,
                         })
                     );
                     return;
@@ -110,6 +138,3 @@ async function p2pServer() {
 }
 
 p2pServer().catch(console.error);
-
-
-

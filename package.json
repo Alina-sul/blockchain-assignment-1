@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "initial-data-setup": "node src/lib/setInitTransactions.js",
-        "start-p2p-server": "node src/p2p/p2pServer.js",
+        "start-p2p-server": "node src/p2p/p2pServer.js 2000",
         "start-p2p-client": "node src/p2p/p2pClient.js"
     },
     "keywords": [],
