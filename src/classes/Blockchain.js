@@ -1,4 +1,3 @@
-const EC = require('elliptic').ec;
 const { Block } = require('./Block');
 const { Transaction } = require('./Transaction');
 
@@ -76,12 +75,12 @@ class Blockchain {
     }
 
     mineAllPendingTransactions() {
-        return new Promise( resolve => {
+        return new Promise((resolve) => {
             while (this.pendingTransactions.length) {
                 this.minePendingTransactions();
             }
             resolve('Mined all transactions');
-        })
+        });
     }
 
     addTransaction(transaction) {

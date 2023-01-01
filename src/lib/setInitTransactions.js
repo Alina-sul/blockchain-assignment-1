@@ -1,5 +1,5 @@
-const fs = require("fs");
-const { wallet, fullNodeWallet } = require('../wallets');
+const fs = require('fs');
+const { wallet1, wallet2 } = require('../wallets');
 const {
     CONSTANTS: { TRANSACTIONS_NUMBER },
 } = require('./constants');
@@ -14,8 +14,8 @@ for (let i = 0; i < TRANSACTIONS_NUMBER; i++) {
     const randomBoolean = Math.random() < 0.5;
 
     transactions.push({
-        fromAddress: randomBoolean ? wallet : fullNodeWallet,
-        toAddress: randomBoolean ? fullNodeWallet : wallet,
+        fromAddress: randomBoolean ? wallet1 : wallet2,
+        toAddress: randomBoolean ? wallet2 : wallet1,
         amount: randomInteger(5, 20),
     });
 }
@@ -23,7 +23,7 @@ for (let i = 0; i < TRANSACTIONS_NUMBER; i++) {
 const jsonContent = JSON.stringify(transactions, null, 2);
 
 fs.writeFile(
-    'initial_transactions_data.json',
+    'src/lib/transactions.json',
     jsonContent,
     'utf8',
     function (err) {
